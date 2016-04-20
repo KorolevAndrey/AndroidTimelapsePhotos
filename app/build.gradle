@@ -7,7 +7,7 @@ android {
     defaultConfig {
         applicationId "com.spookyrobotics.timelapsephotos"
         minSdkVersion 8
-        targetSdkVersion 23
+        targetSdkVersion 8
         versionCode 1
         versionName "1.0"
     }
@@ -26,4 +26,6 @@ android {
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     testCompile 'junit:junit:4.12'
+    compile "com.android.support:support-v4:23.3.0"
+
 }
