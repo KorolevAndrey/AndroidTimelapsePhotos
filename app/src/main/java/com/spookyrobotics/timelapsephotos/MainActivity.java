@@ -8,10 +8,8 @@ import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.File;
@@ -20,7 +18,6 @@ public class MainActivity extends Activity {
 
     private static final String TAG = "MainActivity";
     private Button mStartButton;
-    private int mPhotoCount = -1;
     private TextView mLastPhotoText;
 
     private CameraManager mCameraManager;
@@ -41,41 +38,53 @@ public class MainActivity extends Activity {
                 takePicture(MainActivity.this);
             }
         };
-        setOnClickListeners();
     }
 
-    private void setOnClickListeners() {
+    private void setupStartPicturesButton() {
         mStartButton.setText("Start Pictures");
-        mStartButton.setOnClickListener(new View.OnClickListener() {
+        mStartButton.setOnClickListener(getStartCameraClickListener());
+    }
+
+    private void setupDisablePicturesButton() {
+        mStartButton.setText("Picture Taking in Progress");
+        mStartButton.setOnClickListener(getStopCameraClickListener());
+    }
+
+    private View.OnClickListener getStartCameraClickListener() {
+        return new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try {
-                    mCamera = Camera.open();
-                    Preview preview = (Preview) findViewById(R.id.camera_preview);
-                    ImageView imageView = (ImageView) findViewById(R.id.last_photo);
-                    File storageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                    Storage storage = new Storage(storageDirectory);
-                    mCameraManager = new CameraManager(mCamera, preview, storage);
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to open camera");
-                    return;
-                }
-                mCameraManager.startCamera();
-                mStartButton.setText("Picture Taking in Progress");
-                mStartButton.setClickable(false);
-                mStartButton.setOnClickListener(null);
                 if (getApplicationContext() == null) {
                     return;
                 }
+                setupDisablePicturesButton();
                 Scheduler.scheduleRepeatingPicture(getApplicationContext(), getPackageName());
             }
-        });
+        };
+    }
+
+    private View.OnClickListener getStopCameraClickListener() {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (getApplicationContext() == null) {
+                    return;
+                }
+                setupStartPicturesButton();
+                Scheduler.cancelPictureIntent(getApplicationContext());
+            }
+        };
     }
 
     @Override
     public void onResume(){
         super.onResume();
+        Preview preview = (Preview) findViewById(R.id.camera_preview);
+        File storageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
+        Storage storage = new Storage(storageDirectory);
+        mCameraManager = CameraManager.getInstance(mCamera, preview, storage);
         registerTakePhotoReceiver();
+        setupStartPicturesButton();
     }
 
     private void registerTakePhotoReceiver() {

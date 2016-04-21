@@ -11,18 +11,35 @@ import java.util.Locale;
 
 public class CameraManager {
     private static final String TAG = "CameraManager";
+    private static CameraManager sInstance;
     private Camera mCamera;
     private Preview mPreview;
     private Storage mStorage;
 
-    public CameraManager(Camera camera, Preview preview, Storage storage) {
+    public static CameraManager getInstance(Camera camera, Preview preview, Storage storage){
+        if(sInstance == null){
+            sInstance = new CameraManager(camera, preview, storage);
+        }
+        return sInstance;
+    }
+
+    private CameraManager(Camera camera, Preview preview, Storage storage) {
         mCamera = camera;
         mPreview = preview;
+        if(mPreview == null){
+            throw new NullPointerException("Preview cannot be null");
+        }
         mStorage = storage;
+        try {
+            mCamera = Camera.open();
+        } catch (Exception e) {
+            throw new IllegalAccessError("Failed to open camera: "+e);
+        }
+
     }
 
 
-    public void startCamera(){
+    private void startCamera(final Context context){
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -30,20 +47,35 @@ public class CameraManager {
                 parameters.setPreviewSize(mPreview.getWidth(), mPreview.getHeight());
                 parameters.set("orientation", "portrait");
                 parameters.setRotation(90);
+                parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
                 mCamera.setParameters(parameters);
                 mCamera.setDisplayOrientation(90);
-                mPreview.setSurfaceDestroyedListener(new SurfaceDestroyedListener(){
-                    @Override
-                    public void onSurfaceDestroyed() {
-                        stopPreviewAndFreeCamera();
-                    }
-                });
                 try {
                     mCamera.setPreviewDisplay(mPreview.mHolder);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
                 mCamera.startPreview();
+                mCamera.takePicture(
+                        new Camera.ShutterCallback() {
+                            @Override
+                            public void onShutter() {
+                            }
+                        },
+                        new Camera.PictureCallback() {
+                            @Override
+                            public void onPictureTaken(byte[] bytes, Camera camera) {
+
+                            }
+                        },
+                        new Camera.PictureCallback() {
+                            @Override
+                            public void onPictureTaken(byte[] bytes, Camera camera) {
+                                String pictureName = getPictureName();
+                                mStorage.saveFile(context, pictureName, bytes);
+                            }
+                        }
+                );
 
             }
         });
@@ -54,27 +86,8 @@ public class CameraManager {
         if(mCamera == null){
             return;
         }
-        mCamera.takePicture(
-                new Camera.ShutterCallback() {
-                    @Override
-                    public void onShutter() {
-                    }
-                },
-                new Camera.PictureCallback() {
-                    @Override
-                    public void onPictureTaken(byte[] bytes, Camera camera) {
+        startCamera(context);
 
-                    }
-                },
-                new Camera.PictureCallback() {
-                    @Override
-                    public void onPictureTaken(byte[] bytes, Camera camera) {
-                        String pictureName = getPictureName();
-                        mStorage.saveFile(context, pictureName, bytes);
-                        stopPreviewAndFreeCamera();
-                    }
-                }
-        );
     }
 
     public void stopPreviewAndFreeCamera() {
