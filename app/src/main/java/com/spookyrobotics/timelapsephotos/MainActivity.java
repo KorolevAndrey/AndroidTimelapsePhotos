@@ -7,10 +7,12 @@ import android.content.Intent;
 import android.hardware.Camera;
 import android.os.Bundle;
 import android.os.Environment;
-import android.support.v4.content.LocalBroadcastManager;
+import android.os.Handler;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+
+import com.spookyrobotics.timelapsephotos.functional.Function;
 
 import java.io.File;
 
@@ -22,7 +24,6 @@ public class MainActivity extends Activity {
 
     private CameraManager mCameraManager;
     private BroadcastReceiver mTakePhotoReceiver;
-    private LocalBroadcastManager mLocalBroadcastManager;
     private Camera mCamera;
 
     @Override
@@ -41,8 +42,14 @@ public class MainActivity extends Activity {
     }
 
     private void setupStartPicturesButton() {
+
         mStartButton.setText("Start Pictures");
-        mStartButton.setOnClickListener(getStartCameraClickListener());
+        mStartButton.setOnClickListener(getStartCameraClickListener(new Function<Context, Intent>() {
+            @Override
+            public void call(Context context, Intent intent) {
+                takePicture(MainActivity.this);
+            }
+        }));
     }
 
     private void setupDisablePicturesButton() {
@@ -50,7 +57,7 @@ public class MainActivity extends Activity {
         mStartButton.setOnClickListener(getStopCameraClickListener());
     }
 
-    private View.OnClickListener getStartCameraClickListener() {
+    private View.OnClickListener getStartCameraClickListener(final Function<Context, Intent> function) {
         return new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -58,7 +65,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 setupDisablePicturesButton();
-                Scheduler.scheduleRepeatingPicture(getApplicationContext(), getPackageName());
+                Scheduler.scheduleRepeatingPicture(getApplicationContext(), getPackageName(), function);
             }
         };
     }
@@ -83,13 +90,7 @@ public class MainActivity extends Activity {
         File storageDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
         Storage storage = new Storage(storageDirectory);
         mCameraManager = CameraManager.getInstance(mCamera, preview, storage);
-        registerTakePhotoReceiver();
         setupStartPicturesButton();
-    }
-
-    private void registerTakePhotoReceiver() {
-        mLocalBroadcastManager = LocalBroadcastManager.getInstance(getApplicationContext());
-        mLocalBroadcastManager.registerReceiver(mTakePhotoReceiver, Scheduler.getLocalTakePictureIntentFilter());
     }
 
     private void takePicture(Context context) {
@@ -110,7 +111,6 @@ public class MainActivity extends Activity {
     @Override
     public void onPause(){
         mCameraManager.stopPreviewAndFreeCamera();
-        mLocalBroadcastManager.unregisterReceiver(mTakePhotoReceiver);
         Scheduler.cancelPictureIntent(getApplicationContext());
         super.onPause();
     }

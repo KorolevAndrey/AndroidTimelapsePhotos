@@ -103,7 +103,7 @@ public class CameraManager {
         }
     }
 
-    public String getPictureName() {
+    public static String getPictureName() {
         GregorianCalendar calendar = new GregorianCalendar();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd_HH_mm", Locale.US);
         return formatter.format(calendar.getTime())+".jpg";

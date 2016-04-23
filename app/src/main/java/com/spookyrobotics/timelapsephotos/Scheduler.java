@@ -7,8 +7,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.SystemClock;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+
+import com.spookyrobotics.timelapsephotos.functional.Function;
 
 public class Scheduler {
     private static final String PICTURE_INTENT = "com.spookyrobotics.timelapsephotos.scheduler.take_picture";
@@ -17,7 +18,7 @@ public class Scheduler {
 
     private static BroadcastReceiver mReceiver = null;
 
-    private static void registerReceiver(Context context){
+    private static void registerReceiver(Context context, final Function<Context, Intent> function, IntentFilter intentFilter){
         if(mReceiver != null){
             Log.e(TAG, "mReceiver already registered");
             return;
@@ -25,11 +26,10 @@ public class Scheduler {
         mReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                LocalBroadcastManager localBroadcastReceiver = LocalBroadcastManager.getInstance(context.getApplicationContext());
-                localBroadcastReceiver.sendBroadcast(getLocalTakePictureIntent());
+                function.call(context,intent);
             }
         };
-        context.registerReceiver(mReceiver,new IntentFilter(getGlobalIntentAction(context.getPackageName())));
+        context.registerReceiver(mReceiver, intentFilter);
         Log.d(TAG, "Receiver registered");
     }
 
@@ -60,11 +60,13 @@ public class Scheduler {
         alarmManager.cancel(pendingIntent);
     }
 
-    public static void scheduleRepeatingPicture(Context context, String packageName) {
-        registerReceiver(context);
+    public static void scheduleRepeatingPicture(Context context, String packageName, Function<Context, Intent> function) {
         Intent intent = new Intent();
         intent.setAction(getGlobalIntentAction(packageName));
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
+        IntentFilter intentFilter = new IntentFilter(getGlobalIntentAction(context.getPackageName()));
+
+        registerReceiver(context, function, intentFilter);
         AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         // Schedule first event in the past so it fires immediately
         alarmManager.setRepeating(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() - ONE_MINUTE, ONE_MINUTE, pendingIntent);
